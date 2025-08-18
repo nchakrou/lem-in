@@ -7,6 +7,7 @@ import (
 func main() {
 	lemin.CheckArgs()
 	Lines := lemin.ReadFile()
-	lemin.Validation(Lines)
+	Start, End, Graph := lemin.Validation(Lines)
+	lemin.Bfs(Start, End, Graph)
 
 }

@@ -1,26 +1,29 @@
 package funces
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
 )
 
-func Validation(Lines []string) {
+func Validation(Lines []string) (string, string, map[string][]string) {
 	var Start Room
 	var End Room
 	IsStarted := false
 	IsinEnd := false
-	IsLink := false
+
 	rooms := make(map[string]bool)
 	coords := make(map[string]bool)
 	links := make(map[string]bool)
+	Graph := make(map[string][]string)
 	NumAnts, err := strconv.Atoi(Lines[0])
 	if err != nil || NumAnts <= 0 {
 		log.Fatalln("ERROR: invalid data format, invalid number of Ants")
 	}
 
 	for i := 1; i < len(Lines); i++ {
+		IsLink := false
 		Line := Lines[i]
 		Split := []string{}
 		if strings.Contains(Line, " ") {
@@ -47,7 +50,9 @@ func Validation(Lines []string) {
 			if !strings.HasPrefix(Line, "#") {
 				Split = strings.Split(Line, "-")
 				if len(Split) == 2 {
-					if strings.HasPrefix(Split[0], "L") || strings.HasPrefix(Split[1], "L") || strings.HasPrefix(Split[1], "#") {
+					if strings.HasPrefix(Split[0], "L") || strings.HasPrefix(Split[1], "L") ||
+						strings.HasPrefix(Split[1], "#") || strings.HasPrefix(Split[0], "l") ||
+						strings.HasPrefix(Split[1], "l") {
 						log.Fatalln("ERROR: invalid data format, invalid Links")
 					}
 					IsLink = true
@@ -87,8 +92,12 @@ func Validation(Lines []string) {
 				log.Fatal("ERROR: invalid data format. double Links")
 			}
 			links[Line] = true
+			Graph[Split[0]] = append(Graph[Split[0]], Split[1])
+			Graph[Split[1]] = append(Graph[Split[1]], Split[0])
 		}
 	}
+	fmt.Println(Graph)
+	return Start.Name, End.Name, Graph
 }
 func XandY(Split []string) (string, int, int) {
 	var err error
