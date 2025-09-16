@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Lem-in Visualizer</title>
+<style>
+  :root{
+  /* Simpler, friendly palette */
+  --bg: #0d1117;         /* neutral dark */
+  --panel: #161b22;      /* slightly lighter */
+  --panel-2: #0f141a;    /* subtle gradient */
+  --border: #2b3440;     /* soft border */
+  --muted: #9aa7b4;      /* muted text */
+  --text: #e6edf3;       /* primary text */
+  --edge: #58a6ff;       /* edges: blue */
+  --accent: #7ee787;     /* highlight: green */
+  --ok: #ffb86b;         /* augment: warm orange */
+  --warn: #f2cc60;       /* warning button */
+}
+
+*{ box-sizing:border-box; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+
+header{
+  padding:14px 18px; border-bottom:1px solid #2a3552; display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(180deg, rgba(28, 37, 65, .3), rgba(11, 19, 43, 0)); backdrop-filter: blur(2px);
+}
+
+.gh-link{ display:flex; align-items:center; gap:10px; color:var(--text); text-decoration:none; font-weight:600; }
+.gh-link:hover{ opacity:.9; }
+.gh-link img{ width:32px; height:32px; border-radius:50%; border:1px solid var(--border); }
+
+/* Brand styling */
+.brand{ display:flex; align-items:baseline; gap:10px; }
+.brand-title{ font-size:18px; font-weight:800; letter-spacing:.4px; background: linear-gradient(90deg, var(--accent), var(--edge)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand-sub{ font-size:12px; color: var(--muted); }
+
+.wrap{ display:grid; grid-template-columns: 360px 1fr 380px; gap:10px; padding:10px; }
+
+.card{ background:linear-gradient(180deg, var(--panel), var(--panel-2)); border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow: 0 8px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.03); }
+
+.row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+button,select{ cursor:pointer; background:#1f2630; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 12px; transition: background .15s ease, border-color .15s ease, transform .05s ease, opacity .15s ease; }
+button:hover, select:hover{ background:#283140; border-color:#3b4656; }
+button:active{ transform: translateY(1px) scale(.99); }
+button:focus-visible, select:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+button.primary{ background:#1b2838; border-color:#2b3440; }
+button.primary:hover{ background:#213042; }
+button.good{ background:#163d2a; border-color:#2e7e49; }
+button.good:hover{ background:#1b4b34; }
+button.warn{ background:#3a320f; border-color:#6a5c1a; }
+button.warn:hover{ background:#4a4214; }
+select:disabled{ opacity:.7; cursor:not-allowed; }
+
+.panel-title{ font-size:12px; color:var(--muted); margin-bottom:8px; letter-spacing:.2px; }
+.kvs{ display:grid; grid-template-columns:auto 1fr; gap:6px 12px; align-items:start; }
+.mono{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; }
+.pill{ display:inline-block; padding:2px 8px; border-radius:999px; background:#161d31; border:1px solid var(--accent); color:var(--accent); font-size:12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+.sep{ height:1px; background:#2a3552; margin:12px 0; }
+
+textarea{ width:100%; background:#0f141a; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px; }
+
+svg{ width:100%; height:760px; background: radial-gradient(1200px 760px at 50% 50%, #0f141a, #0b0f14); border:1px solid #232a33; border-radius:12px; }
+
+  .edge-line{ stroke:var(--edge); stroke-width:2.4; opacity:.95; transition: stroke .15s ease, stroke-width .15s ease, opacity .15s ease; }
+  .edge-line.highlight{ stroke:var(--accent); stroke-width:3.2; opacity:1; }
+  .edge-line.augment{ stroke:var(--ok); stroke-width:3.2; opacity:1; }
+  .edge-label{ fill:var(--muted); font-size:13px; font-weight:600; paint-order: stroke; stroke: rgba(8,8,8,.85); stroke-width:4px; stroke-linejoin:round; }
+  .edge-label-bg{ fill: rgba(8, 12, 23, .85); stroke: var(--border); stroke-width:1; rx:6; ry:6; }
+
+svg text{ font-size:14px; }
+.node{ fill:#19212b; stroke:#2b3440; stroke-width:1.6; transition: fill .15s ease, stroke .15s ease, transform .1s ease; }
+.node.visited{ fill:#203346; stroke:var(--accent); }
+.node.queued{ fill:#2c2410; stroke:var(--warn); }
+.node.current{ fill:#1e2f22; stroke:var(--accent); }
+.node.used{ fill:#1c2633; stroke:var(--accent); }
+
+.log{ font-size:12px; line-height:1.5; max-height:280px; overflow:auto; background:#080c17; border:1px solid #2a3552; border-radius:8px; padding:10px; }
+
+/* Select arrow */
+select{ padding-right: 28px; background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%); background-position: calc(100% - 16px) calc(50% - 3px), calc(100% - 10px) calc(50% - 3px); background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; }
+
+/* Scrollbar */
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-track{ background:#080c17; }
+::-webkit-scrollbar-thumb{ background:#1f3a5a; border-radius:8px; }
+::-webkit-scrollbar-thumb:hover{ background:#24446a; }
+
+@media (max-width: 1200px){ .wrap{ grid-template-columns: 1fr; } svg{ height: 620px; } }
+
+/* Edge label emphasis (colors for f and r) */
+.edge-label .f{ fill:#00e6ff; font-weight:700; }
+.edge-label .r{ fill:#ff6a3d; font-weight:700; }
+
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="brand-title">Lem-in Visualizer</span>
+    <span class="brand-sub">Max-flow (Edmonds–Karp) explorer 🐜</span>
+  </div>
+  <a class="gh-link" href="https://github.com/nchakrou" target="_blank" rel="noopener noreferrer">
+    <img src="https://github.com/nchakrou.png" alt="nchakrou avatar"/>
+    <span>@nchakrou</span>
+  </a>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="panel-title">Controls</div>
+    <div class="row">
+      <button id="startBtn" class="primary">Start</button>
+      <button id="nextBtn" class="good">Next ▶</button>
+      <button id="autoBtn" class="warn">Auto</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+    <div class="sep"></div>
+    <div class="panel-title">Input Data</div>
+    <textarea id="dataInput" class="mono" rows="10" placeholder="Paste your lem-in data here..."></textarea>
+    <div class="sep"></div>
+    <div class="panel-title">Algorithm State</div>
+    <div class="kvs mono">
+      <div>Phase:</div><div id="phaseView">—</div>
+      <div>Augment #:</div><div id="augView">0</div>
+      <div>Queue:</div><div id="queueView">[]</div>
+      <div>Visited:</div><div id="visitedView">∅</div>
+      <div>Current Path:</div><div id="curPathView">—</div>
+      <div>Used nodes:</div><div id="usedView">∅</div>
+      <div>Found Paths:</div><div id="pathsView">—</div>
+      <div>Step:</div><div id="stepView" class="pill">0</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <svg id="svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--edge)"></path>
+        </marker>
+        <marker id="arrowH" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"></path>
+        </marker>
+        <marker id="arrowA" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ok)"></path>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  
+  <div class="card">
+    <div class="panel-title">Options</div>
+    <div class="row mono">
+      <label><input type="checkbox" id="toggleNonZero"> Show only edges with non‑zero f or r</label>
+    </div>
+  </div>
+  <div class="card">
+    <div class="panel-title">Author</div>
+    <div class="row" style="align-items:center;gap:12px">
+      <img src="https://github.com/nchakrou.png" alt="nchakrou avatar" width="56" height="56" style="border-radius:50%; border:1px solid var(--border)"/>
+      <div>
+        <div class="mono"><a href="https://github.com/nchakrou" target="_blank" rel="noopener noreferrer" style="color:var(--text); text-decoration:none;">github.com/nchakrou</a></div>
+        <div class="mono" style="color:var(--muted);">@nchakrou</div>
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<script>
+  // Lem-in Visualizer Script
+// Ported from pre.html, with input parsing and ant distribution
+
+const $ = id => document.getElementById(id);
+
+// Default example (same topology as pre.html)
+const DEFAULT_TEXT = `3
+##start
+start 1 6
+0 4 8
+o 6 8
+n 6 6
+e 8 4
+##end
+end 11 6
+
+t 1 9
+E 5 9
+a 8 9
+m 8 6
+h 4 6
+A 5 2
+c 8 1
+k 11 2
+
+start-t
+n-e
+a-m
+A-c
+0-o
+E-a
+k-end
+start-h
+o-n
+m-end
+t-E
+start-0
+h-A
+e-end
+c-k
+n-m
+h-n`;
+
+// State
+const state = {
+  graph: {}, rev: {}, pos: {}, start: null, end: null,
+  events: [], step: -1, flow: {}, auto: null,
+  _visited: new Set(), _queued: new Set(), _current: null, _scan: null, _path: null, _used: new Set(),
+  ants: 0, paths: [],
+  showNonZero: false
+};
+
+// SVG
+const svg = document.getElementById('svg');
+const defsTemplate = svg.querySelector('defs').cloneNode(true);
+const width = 1000, height = 700, margin = 50;
+
+function deep(o){ return JSON.parse(JSON.stringify(o)); }
+function cloneFlow(f){ const o={}; for (const a in f){ o[a]={}; for (const b in f[a]) o[a][b]=f[a][b]; } return o; }
+
+// Build graph utilities
+function buildGraph(edges, nodes){
+  const g = {}; for (const n of nodes) g[n] = [];
+  for (const [u,v] of edges){ if (!g[u]) g[u] = []; g[u].push(v); }
+  return g;
+}
+function buildRev(g){
+  const r = {}; for (const u in g){ for (const v of g[u]){ (r[v]??=[]).push(u); } }
+  for (const u in g){ r[u] ??= []; }
+  return r;
+}
+
+// Layout: use coordinates if provided, else layered by BFS distance from start
+function computeLayout(coords, graph, start){
+  if (coords && Object.keys(coords).length){
+    const xs=Object.values(coords).map(p=>p[0]), ys=Object.values(coords).map(p=>p[1]);
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    const W=width-2*margin, H=height-2*margin, pos={};
+    for (const [name,[x,y]] of Object.entries(coords)){
+      pos[name] = { x: margin + (x-minX)/(maxX-minX||1)*W, y: margin + (maxY-y)/(maxY-minY||1)*H };
+    }
+    return pos;
+  }
+  // BFS layering
+  const dist = {}; const q=[start]; dist[start]=0;
+  while (q.length){ const u=q.shift(); for (const v of graph[u]||[]){ if (!(v in dist)){ dist[v]=dist[u]+1; q.push(v); } } }
+  const layers = {}; for (const n in graph){ const d=dist[n]??0; (layers[d]??=[]).push(n); }
+  const maxL = Math.max(...Object.keys(layers).map(k=>+k));
+  const pos = {};
+  for (let l=0; l<=maxL; l++){
+    const arr = layers[l]||[]; const x = margin + (width-2*margin) * (l/(Math.max(1,maxL)));
+    const step = (height-2*margin) / (Math.max(1,arr.length));
+    arr.forEach((n,i)=>{ pos[n] = { x, y: margin + (i+0.5)*step }; });
+  }
+  // Any nodes not discovered
+  const others = Object.keys(graph).filter(n=>!(n in pos));
+  others.forEach((n,i)=>{ pos[n] = { x: width/2, y: margin + i*30 }; });
+  return pos;
+}
+
+// Parser for lem-in like input
+// Format:
+//  First line: number of ants
+//  Rooms: name x y (with optional ##start / ##end before)
+//  Links: name1-name2
+function parseLemin(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l && !l.startsWith('# '));
+  let ants = 0; let i=0;
+  function isRoom(s){ return /^\S+\s+\d+\s+\d+$/.test(s); }
+  function isLink(s){ return /^\S+-\S+$/.test(s); }
+  if (i<lines.length && /^\d+$/.test(lines[i])){ ants = parseInt(lines[i++],10); }
+  let start=null,end=null; const coords={}, nodes=new Set(), edges=[], undirected=[];
+  let mode = null; // 'start' / 'end'
+  for (; i<lines.length; i++){
+    const l = lines[i];
+    if (l === '##start'){ mode='start'; continue; }
+    if (l === '##end'){ mode='end'; continue; }
+    if (isRoom(l)){
+      const [name, xs, ys] = l.split(/\s+/);
+      coords[name] = [parseFloat(xs), parseFloat(ys)]; nodes.add(name);
+      if (mode==='start'){ start=name; mode=null; }
+      else if (mode==='end'){ end=name; mode=null; }
+      continue;
+    }
+    if (isLink(l)){
+      const [a,b] = l.split('-'); undirected.push([a,b]); nodes.add(a); nodes.add(b);
+      continue;
+    }
+  }
+  // make directed edges from undirected (assume both directions allowed)
+  for (const [a,b] of undirected){ edges.push([a,b]); }
+  // Sanity: ensure start/end
+  if (!start || !end){ throw new Error('Missing ##start or ##end room'); }
+  return { ants, coords, nodes: [...nodes], edges, start, end };
+}
+
+// Simulator (Edmonds-Karp with residual backward checks)
+function simulate(graph, rev, start, end){
+  const flow = {}; for (const u in graph) flow[u] = {};
+  const events=[]; let aug=0;
+  events.push({type:'init', flow:cloneFlow(flow)});
+  while (true){
+    aug++;
+    let parent={}, queue=[start], visited={[start]:true}, found=false;
+    events.push({type:'bfs-start', augment:aug, queue:[...queue], visited:{...visited}});
+    while (queue.length && !found){
+      const cur = queue.shift();
+      events.push({type:'dequeue', augment:aug, current:cur, queue:[...queue], visited:{...visited}});
+      for (const nb of graph[cur]||[]){
+        const f=(flow[cur]?.[nb]??0); const ok=f<1 && !visited[nb];
+        events.push({type:'scan-forward', augment:aug, from:cur, to:nb, fwdVal:f, visitedTo:!!visited[nb], ok, queue:[...queue], visited:{...visited}});
+        if (ok){ parent[nb]=cur; visited[nb]=true; queue.push(nb); events.push({type:'forward-relax', augment:aug, from:cur, to:nb, parent:{...parent}, queue:[...queue], visited:{...visited}}); if (nb===end){ found=true; events.push({type:'found-end', augment:aug, at:nb}); break; } }
+      }
+      if (found) break;
+      for (const prev of rev[cur]||[]){
+        const val=(flow[prev]?.[cur]??0); const ok=val>0 && !visited[prev];
+        events.push({type:'scan-backward-resid', augment:aug, from:cur, to:prev, backVal:val, visitedTo:!!visited[prev], ok, queue:[...queue], visited:{...visited}});
+        if (ok){ parent[prev]=cur; visited[prev]=true; queue.push(prev); events.push({type:'backward-relax-resid', augment:aug, from:cur, to:prev, parent:{...parent}, queue:[...queue], visited:{...visited}}); if (prev===end){ found=true; events.push({type:'found-end', augment:aug, at:prev}); break; } }
+      }
+    }
+    if (!found){ events.push({type:'no-augmenting-path', augment:aug}); break; }
+    const path=[]; for (let v=end; v!==start; v=parent[v]) path.unshift(v); path.unshift(start);
+    events.push({type:'augment-path', augment:aug, path:[...path]});
+    for (let i=0;i<path.length-1;i++){
+      const u=path[i], v=path[i+1];
+      const prevF=(flow[u][v]??0), prevR=(flow[v][u]??0);
+      flow[u][v]=prevF+1; flow[v][u]=prevR-1;
+      events.push({type:'update-flow', augment:aug, from:u, to:v, prevF, nextF:flow[u][v], prevR, nextR:flow[v][u], flow:cloneFlow(flow)});
+    }
+    events.push({type:'end-augmentation', augment:aug, flow:cloneFlow(flow)});
+  }
+  // extraction of disjoint paths
+  let used={}, allPaths=[]; events.push({type:'extract-start', flow:cloneFlow(flow), used:{...used}});
+  while (true){
+    let path=[start], cur=start; events.push({type:'extract-extend-start', path:[...path], used:{...used}});
+    while (cur!==end){
+      let moved=false;
+      for (const nx of graph[cur]||[]){ const f=(flow[cur]?.[nx]??0), ok=f>0 && !used[nx]; events.push({type:'extract-try', from:cur, to:nx, flowVal:f, usedTo:!!used[nx], ok}); if (ok){ path.push(nx); cur=nx; moved=true; events.push({type:'extract-step', from:path[path.length-2], to:cur, path:[...path]}); break; } }
+      if (!moved){ events.push({type:'extract-stuck', at:cur, path:[...path]}); break; }
+    }
+    if (cur===end){ allPaths.push([...path]); events.push({type:'extract-found-path', path:[...path], allPaths:[...allPaths]}); const marked=[]; for (let i=1;i<path.length-1;i++){ used[path[i]]=true; marked.push(path[i]); } events.push({type:'extract-mark-used', used:{...used}, marked}); for (let i=0;i<path.length-1;i++){ const u=path[i], v=path[i+1]; flow[u][v]=0; flow[v][u]=0; events.push({type:'extract-clear-flow', from:u, to:v, flow:cloneFlow(flow)}); } events.push({type:'extract-cleared', flow:cloneFlow(flow)}); }
+    else { events.push({type:'extract-done', allPaths:[...allPaths]}); break; }
+  }
+  events.push({type:'done', flow:cloneFlow(flow)});
+  return {events, allPaths};
+}
+
+// Drawing
+function el(n,a={}){ const x=document.createElementNS('http://www.w3.org/2000/svg', n); for (const k in a) x.setAttribute(k,a[k]); return x; }
+function findEdge(u,v){ return [...svg.querySelectorAll('.edge-line')].find(l=>l.dataset.u===u && l.dataset.v===v); }
+function varText(){ return getComputedStyle(document.documentElement).getPropertyValue('--text') || '#f4f4f6'; }
+
+function draw(){
+  while (svg.lastChild) svg.removeChild(svg.lastChild);
+  svg.appendChild(defsTemplate.cloneNode(true));
+  // edges
+  for (const u in state.graph){
+    for (const v of state.graph[u]){
+      const g=el('g');
+      const l=el('line',{x1:state.pos[u].x,y1:state.pos[u].y,x2:state.pos[v].x,y2:state.pos[v].y,class:'edge-line','marker-end':'url(#arrow)'}); l.dataset.u=u; l.dataset.v=v; g.appendChild(l);
+      const ux=state.pos[u].x, uy=state.pos[u].y, vx=state.pos[v].x, vy=state.pos[v].y;
+      const mx=(ux+vx)/2, my=(uy+vy)/2;
+      // offset label slightly perpendicular to the edge to avoid overlapping the line
+      const dx=vx-ux, dy=vy-uy; const len=Math.max(1, Math.hypot(dx,dy));
+      const nx=-dy/len, ny=dx/len; // normal
+      const off=10; // pixels to offset
+      const lx=mx + nx*off, ly=my + ny*off;
+      const t=el('text',{x:lx,y:ly,class:'edge-label mono','text-anchor':'middle','dominant-baseline':'central'});
+      const f=(state.flow[u]?.[v]??0);
+      const r=(state.flow[v]?.[u]??0);
+
+      if (state.showNonZero && f===0 && r===0) {
+        // Fade line and skip label entirely when filtering is on
+        l.style.opacity = 0.18;
+      } else {
+        const fspan = el('tspan',{class:'f'}); fspan.textContent = `f=${f}`;
+        const sep   = el('tspan'); sep.textContent = '|'; sep.setAttribute('dx','8');
+        const rspan = el('tspan',{class:'r'}); rspan.textContent = `r=${r}`; rspan.setAttribute('dx','8');
+        t.appendChild(fspan); t.appendChild(sep); t.appendChild(rspan);
+        t.style.opacity = 1;
+        // add a background pill behind the text for readability
+        g.appendChild(t);
+        const bb=t.getBBox();
+        const padX=6, padY=3;
+        const bg=el('rect',{x:bb.x-padX,y:bb.y-padY,width:bb.width+padX*2,height:bb.height+padY*2,class:'edge-label-bg'});
+        g.insertBefore(bg, t);
+        // already appended above, continue
+        svg.appendChild(document.createComment(''));
+      }
+      svg.appendChild(g);
+    }
+  }
+  // nodes
+  for (const n in state.pos){
+    const p=state.pos[n], g=el('g'); const c=el('circle',{cx:p.x,cy:p.y,r:18,class:'node'});
+    if (state._visited.has(n)) c.classList.add('visited');
+    if (state._queued.has(n)) c.classList.add('queued');
+    if (state._current===n) c.classList.add('current');
+    if (state._used.has(n)) c.classList.add('used');
+    g.appendChild(c);
+    const lbl=el('text',{x:p.x,y:p.y+4,fill:varText(),'text-anchor':'middle'}); lbl.textContent=n; g.appendChild(lbl); svg.appendChild(g);
+  }
+  // highlights
+  if (state._scan){ const ln=findEdge(state._scan.from,state._scan.to); if (ln){ ln.classList.add('highlight'); ln.setAttribute('marker-end','url(#arrowH)'); } }
+  if (state._path && state._path.length>1){ for (let i=0;i<state._path.length-1;i++){ const a=state._path[i], b=state._path[i+1]; const ln=findEdge(a,b); if (ln){ ln.classList.add('augment'); ln.setAttribute('marker-end','url(#arrowA)'); } } }
+}
+
+// UI helpers
+function setPhase(s){ $('phaseView').textContent=s; }
+function setAug(n){ $('augView').textContent=String(n); }
+function setQueue(q){ $('queueView').textContent=JSON.stringify(q||[]); }
+function setVisited(v){ $('visitedView').textContent=Object.keys(v||{}).length?`{ ${Object.keys(v).join(', ')} }`:'∅'; }
+function setPaths(paths){ $('pathsView').innerHTML = (!paths||!paths.length)?'—':paths.map((p,i)=>`#${i+1}: ${p.join(' → ')}`).join('<br>'); }
+function setParent(p){ const el=$('parentView'); if (!el) return; const E=Object.entries(p||{}); el.textContent = E.length? E.map(([k,v])=>`${k}←${v}`).join(', ') : '∅'; }
+function setExplain(text){ const el=$('explainView'); if (el) el.textContent = text || ''; }
+function setCurPath(path){ const el=$('curPathView'); if (!el) return; el.textContent = (path && path.length)? path.join(' → ') : '—'; }
+function setUsed(u){ const el=$('usedView'); if (!el) return; const keys = Array.isArray(u)? u : Object.keys(u||{}); el.textContent = keys.length? `{ ${keys.join(', ')} }` : '∅'; }
+function setEvent(e){ const el=$('eventView'); if (!el) return; try{ el.textContent = JSON.stringify(e, null, 2); } catch{ el.textContent = String(e); } }
+
+function explainEvent(e){
+  switch (e.type) {
+    case 'bfs-start':
+      return `Start BFS #${e.augment}: put start node in the queue.`;
+    case 'dequeue':
+      return `Take node '${e.current}' from the queue and explore its neighbors.`;
+    case 'scan-forward':
+      return `Check forward edge ${e.from} → ${e.to}. ` + (e.ok ? 'There is capacity, so we can visit it.' : 'No capacity or already visited.');
+    case 'forward-relax':
+      return `Visit '${e.to}' from '${e.from}' and add it to the queue.`;
+    case 'scan-backward-resid':
+      return `Check backward (residual) edge ${e.from} ← ${e.to} (flow[${e.to}][${e.from}]=${e.backVal}). ` + (e.ok ? 'Residual flow exists, we can move back.' : 'No residual flow or already visited.');
+    case 'backward-relax-resid':
+      return `Move via residual edge to '${e.to}' and add it to the queue.`;
+    case 'found-end':
+      return `Reached the end node. Reconstruct the path.`;
+    case 'augment-path':
+      return `Augment flow along the path: ${e.path.join(' → ')}.`;
+    case 'update-flow':
+      return `Increase flow on ${e.from} → ${e.to}.`;
+    case 'end-augmentation':
+      return `Finished augmentation #${e.augment}.`;
+    case 'no-augmenting-path':
+      return `No more augmenting paths. Extracting the disjoint paths from the flow.`;
+    case 'extract-try':
+      return `Try to extend current path from ${e.from} to ${e.to}.`;
+    case 'extract-step':
+      return `Extend path to ${e.to}.`;
+    case 'extract-found-path':
+      return `Found a disjoint path: ${e.allPaths[e.allPaths.length-1].join(' → ')}.`;
+    case 'done':
+      return `Done. All paths found and flow finalized.`;
+    default:
+      return '';
+  }
+}
+
+function applyEvent(e){
+  state._visited=new Set(); state._queued=new Set(); state._current=null; state._scan=null; state._path=null;
+  $('stepView').textContent=String(state.step+1);
+  if (e.flow) state.flow=deep(e.flow);
+  if (typeof e.augment==='number') setAug(e.augment);
+  setExplain(explainEvent(e));
+  setEvent(e);
+  switch(e.type){
+    case 'bfs-start': setPhase(`BFS #${e.augment}`); setQueue(e.queue); setVisited(e.visited); break;
+    case 'dequeue': setPhase('dequeue'); setQueue(e.queue); setVisited(e.visited); state._current=e.current; state._visited=new Set(Object.keys(e.visited||{})); break;
+    case 'scan-forward': case 'scan-backward-resid': state._scan={from:e.from, to:e.to}; setQueue(e.queue); setVisited(e.visited); break;
+    case 'forward-relax': case 'backward-relax-resid': setQueue(e.queue); setVisited(e.visited); setParent(e.parent); state._scan={from:e.from, to:e.to}; break;
+    case 'found-end': setPhase('reconstruct path'); break;
+    case 'augment-path': setPhase('augment'); state._path=e.path; setCurPath(e.path); break;
+    case 'update-flow': setPhase(`update ${e.from}→${e.to}`); state._path=e.path || state._path; break;
+    case 'end-augmentation': setPhase('augmentation done'); break;
+    case 'no-augmenting-path': setPhase('extract'); break;
+    case 'extract-try': state._scan={from:e.from, to:e.to}; break;
+    case 'extract-step': state._path=e.path; setCurPath(e.path); break;
+    case 'extract-found-path': setPaths(e.allPaths); break;
+    case 'extract-mark-used': state._used=new Set(Object.keys(e.used||{})); setUsed(e.used); break;
+    case 'done': setPhase('Finished'); break;
+  }
+  draw();
+}
+
+// Ant distribution (mirror of Go function)
+function distributeAnts(paths, numberOfAnts){
+  const n=paths.length; const antDistribution = Array.from({length:n}, ()=>[]); const pathLengths = paths.map(p=>p.length);
+  for (let antID=1; antID<=numberOfAnts; antID++){
+    let minIndex=0; let minSteps=pathLengths[0]+antDistribution[0].length;
+    for (let j=1;j<n;j++){
+      const currentSteps=pathLengths[j]+antDistribution[j].length;
+      if (currentSteps < minSteps){ minIndex=j; minSteps=currentSteps; }
+    }
+    antDistribution[minIndex].push(antID);
+  }
+  return antDistribution;
+}
+
+function renderAnts(paths, ants){
+  const container = $('antsView');
+  if (!container) return; // panel removed: do nothing
+  if (!paths || !paths.length){ container.textContent = 'Waiting for paths to be found...'; return; }
+  const dist = distributeAnts(paths, ants||0);
+  const lines = [];
+  lines.push(`Ants: ${ants}`);
+  paths.forEach((p,i)=>{
+    lines.push(`#${i+1} [len=${p.length}]: ${p.join(' → ')} | ants: [${dist[i].join(', ')}]`);
+  });
+  container.textContent = lines.join('\n');
+}
+
+// Control handlers
+function start(){
+  // Try to parse textarea; fall back to default
+  const raw = $('dataInput').value.trim();
+  let parsed;
+  try { parsed = parseLemin(raw || DEFAULT_TEXT); }
+  catch (e){ alert('Parse error: '+e.message+'\nUsing default example.'); parsed = parseLemin(DEFAULT_TEXT); }
+  const {ants, coords, nodes, edges, start:st, end:ed} = parsed;
+  const graph = buildGraph(edges, nodes);
+  const rev = buildRev(graph);
+  const pos = computeLayout(coords, graph, st);
+  Object.assign(state, {graph, rev, pos, start:st, end:ed, flow:{}, events:[], step:-1, ants, paths:[], _used:new Set()});
+  const {events, allPaths} = simulate(graph, rev, st, ed);
+  state.events = events; state.step = -1; state.paths = allPaths;
+  renderAnts(allPaths, ants);
+  setExplain('Simulation prepared. Press Next or Auto to step through BFS.');
+  setCurPath(null); setUsed([]); setEvent('—');
+  next();
+}
+function next(){
+  if (!state.events.length) return;
+  state.step++;
+  if (state.step >= state.events.length){ state.step=state.events.length-1; stopAuto(); return; }
+  applyEvent(state.events[state.step]);
+}
+function auto(){ stopAuto(); state.auto=setInterval(()=>{ if (state.step>=state.events.length-1){ stopAuto(); return; } next(); }, 600); }
+function stopAuto(){ if (state.auto){ clearInterval(state.auto); state.auto=null; } }
+
+// Bind
+$('startBtn').onclick = start;
+$('nextBtn').onclick = next;
+$('autoBtn').onclick = ()=> state.auto ? stopAuto() : auto();
+const resetBtn = $('resetBtn'); if (resetBtn){ resetBtn.onclick = ()=>{
+  stopAuto();
+  state.events=[]; state.step=-1; state.flow={}; state._visited=new Set(); state._queued=new Set(); state._current=null; state._scan=null; state._path=null; state._used=new Set();
+  setPhase('—'); setAug(0); setQueue([]); setVisited({}); setPaths([]); setExplain('Reset. Paste input and press Start.');
+  setCurPath(null); setUsed([]); setEvent('—');
+  draw();
+}; }
+
+// Toggle only non-zero labels
+const toggle = document.getElementById('toggleNonZero'); if (toggle){ toggle.onchange = (e)=>{ state.showNonZero = !!e.target.checked; draw(); }; }
+
+// Initialize textarea with default example
+const dataInput = $('dataInput'); if (dataInput){ dataInput.value = DEFAULT_TEXT; }
+
+// First draw
+draw();
+
+</script>
+</body>
+</html>
